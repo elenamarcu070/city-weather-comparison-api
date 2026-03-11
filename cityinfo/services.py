@@ -9,9 +9,9 @@ OPENCAGE_KEY = os.getenv("OPENCAGE_KEY")
 OPENWEATHER_KEY = os.getenv("OPENWEATHER_KEY")
 PEXELS_KEY = os.getenv("PEXELS_KEY")
 
-# -----------------------
-# GEOCODING
-# -----------------------
+# ----------------------------
+# API 1 – GEOCODING
+# ----------------------------
 
 def get_coordinates(city):
     url = "https://api.opencagedata.com/geocode/v1/json"
@@ -30,18 +30,17 @@ def get_coordinates(city):
     }
 
 
-# -----------------------
-# WEATHER
-# -----------------------
+# ----------------------------
+# API 2 – WEATHER
+# ----------------------------
 
-def get_weather(lat, lon):
+def get_weather(lat=None, lon=None, city=None):
     url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "lat": lat,
-        "lon": lon,
-        "appid": OPENWEATHER_KEY,
-        "units": "metric"
-    }
+
+    if city:
+        params = {"q": city, "appid": OPENWEATHER_KEY, "units": "metric"}
+    else:
+        params = {"lat": lat, "lon": lon, "appid": OPENWEATHER_KEY, "units": "metric"}
 
     data = requests.get(url, params=params).json()
 
@@ -51,25 +50,9 @@ def get_weather(lat, lon):
     }
 
 
-def get_weather_by_city(city_name):
-    url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": city_name,
-        "appid": OPENWEATHER_KEY,
-        "units": "metric"
-    }
-
-    data = requests.get(url, params=params).json()
-
-    return {
-        "temperature": data["main"]["temp"],
-        "description": data["weather"][0]["description"]
-    }
-
-
-# -----------------------
-# AIR QUALITY
-# -----------------------
+# ----------------------------
+# API 3 – AIR QUALITY
+# ----------------------------
 
 def get_air_quality(lat, lon):
     url = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -79,9 +62,9 @@ def get_air_quality(lat, lon):
     return {"pm25": data["hourly"]["pm2_5"][0]}
 
 
-# -----------------------
-# COUNTRY INFO
-# -----------------------
+# ----------------------------
+# API 4 – COUNTRY INFO
+# ----------------------------
 
 def get_country_info(code):
     url = f"https://restcountries.com/v3.1/alpha/{code}"
@@ -94,13 +77,12 @@ def get_country_info(code):
     }
 
 
-# -----------------------
-# IMAGE
-# -----------------------
+# ----------------------------
+# API 5 – IMAGE
+# ----------------------------
 
 def get_city_image(city):
     url = "https://api.pexels.com/v1/search"
-
     headers = {"Authorization": PEXELS_KEY}
     params = {"query": city, "per_page": 1}
 
@@ -112,28 +94,29 @@ def get_city_image(city):
     return None
 
 
-# -----------------------
-# SCORE SYSTEM
-# -----------------------
+# ----------------------------
+# SCORE CALCULATION
+# ----------------------------
 
 def calculate_scores(temp, pm25, population):
-    comfort = max(0, 30 - abs(temp - 22))
-    air_score = max(0, 100 - pm25)
-    density_score = max(0, 50 - (population / 2_000_000))
 
-    total = comfort * 0.4 + air_score * 0.4 + density_score * 0.2
+    comfort = max(0, 30 - abs(temp - 22))
+    air_quality = max(0, 100 - pm25)
+    density = max(0, 50 - (population / 2_000_000))
+
+    total = comfort * 0.4 + air_quality * 0.4 + density * 0.2
 
     return {
         "comfort": round(comfort, 2),
-        "air_quality": round(air_score, 2),
-        "density": round(density_score, 2),
+        "air_quality": round(air_quality, 2),
+        "density": round(density, 2),
         "total": round(total, 2)
     }
 
 
-# -----------------------
-# BUILD CITY + CAPITAL
-# -----------------------
+# ----------------------------
+# BUILD BUNDLE (CITY + CAPITAL)
+# ----------------------------
 
 def build_city_bundle(city_name):
 
@@ -141,47 +124,56 @@ def build_city_bundle(city_name):
     if not coords:
         return None
 
-    # ---- CITY ----
-    weather = get_weather(coords["lat"], coords["lon"])
-    air = get_air_quality(coords["lat"], coords["lon"])
     country = get_country_info(coords["country_code"])
-    image = get_city_image(city_name)
+
+    # CITY RAW
+    city_weather = get_weather(lat=coords["lat"], lon=coords["lon"])
+    city_air = get_air_quality(coords["lat"], coords["lon"])
+    city_image = get_city_image(city_name)
 
     city_scores = calculate_scores(
-        weather["temperature"],
-        air["pm25"],
+        city_weather["temperature"],
+        city_air["pm25"],
         country["population"]
     )
 
     city_data = {
-        "name": city_name,
-        "temperature": weather["temperature"],
-        "description": weather["description"],
-        "pm25": air["pm25"],
-        "population": country["population"],
-        "currency": country["currency"],
-        "image": image,
-        "scores": city_scores
+        "raw": {
+            "lat": coords["lat"],
+            "lon": coords["lon"],
+            "country_code": coords["country_code"],
+            "temperature": city_weather["temperature"],
+            "pm25": city_air["pm25"],
+            "population": country["population"]
+        },
+        "processed": city_scores,
+        "meta": {
+            "name": city_name,
+            "currency": country["currency"],
+            "image": city_image
+        }
     }
 
-    # ---- CAPITAL ----
-    capital_weather = get_weather_by_city(country["capital"])
+    # CAPITAL RAW (cascadare)
+    capital_weather = get_weather(city=country["capital"])
+    capital_image = get_city_image(country["capital"])
 
     capital_scores = calculate_scores(
         capital_weather["temperature"],
-        air["pm25"],  # simplificare
+        city_air["pm25"],
         country["population"]
     )
 
     capital_data = {
-        "name": country["capital"],
-        "temperature": capital_weather["temperature"],
-        "description": capital_weather["description"],
-        "pm25": air["pm25"],
-        "population": country["population"],
-        "currency": country["currency"],
-        "image": get_city_image(country["capital"]),
-        "scores": capital_scores
+        "raw": {
+            "name": country["capital"],
+            "temperature": capital_weather["temperature"],
+            "population": country["population"]
+        },
+        "processed": capital_scores,
+        "meta": {
+            "image": capital_image
+        }
     }
 
     return {
@@ -190,24 +182,24 @@ def build_city_bundle(city_name):
     }
 
 
-# -----------------------
+# ----------------------------
 # COMPARISON
-# -----------------------
+# ----------------------------
 
-def compare_bundles(bundle1, bundle2):
+def compare_bundles(b1, b2):
 
     city_winner = (
-        bundle1["city"]["name"]
-        if bundle1["city"]["scores"]["total"] >
-           bundle2["city"]["scores"]["total"]
-        else bundle2["city"]["name"]
+        b1["city"]["meta"]["name"]
+        if b1["city"]["processed"]["total"] >
+           b2["city"]["processed"]["total"]
+        else b2["city"]["meta"]["name"]
     )
 
     capital_winner = (
-        bundle1["capital"]["name"]
-        if bundle1["capital"]["scores"]["total"] >
-           bundle2["capital"]["scores"]["total"]
-        else bundle2["capital"]["name"]
+        b1["capital"]["raw"]["name"]
+        if b1["capital"]["processed"]["total"] >
+           b2["capital"]["processed"]["total"]
+        else b2["capital"]["raw"]["name"]
     )
 
     return {

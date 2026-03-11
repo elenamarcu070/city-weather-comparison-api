@@ -4,11 +4,13 @@ from .services import build_city_bundle, compare_bundles
 
 
 def home(request):
-    return render(request, "cityinfo/home.html")
+    return render(request, "city/home.html")
 
 
 def compare_cities(request):
+
     if request.method == "POST":
+
         city1 = request.POST.get("city1")
         city2 = request.POST.get("city2")
 

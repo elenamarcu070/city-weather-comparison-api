@@ -1,208 +1,146 @@
-
 import requests
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENCAGE_KEY = os.getenv("OPENCAGE_KEY")
-OPENWEATHER_KEY = os.getenv("OPENWEATHER_KEY")
-PEXELS_KEY = os.getenv("PEXELS_KEY")
+# Cheile API (luate din .env)
+CHEIE_OPENCAGE = os.getenv("OPENCAGE_KEY")
+CHEIE_VREME = os.getenv("OPENWEATHER_KEY")
+CHEIE_PEXELS = os.getenv("PEXELS_KEY")
 
-# ----------------------------
-# API 1 – GEOCODING
-# ----------------------------
 
-def get_coordinates(city):
+# -------------------------------------------------
+# 1️⃣ FUNCȚIE: Obține coordonatele unui oraș
+# -------------------------------------------------
+def obtine_coordonate(nume_oras):
+
     url = "https://api.opencagedata.com/geocode/v1/json"
-    params = {"q": city, "key": OPENCAGE_KEY, "limit": 1}
-    data = requests.get(url, params=params).json()
+    parametri = {
+        "q": nume_oras,
+        "key": CHEIE_OPENCAGE,
+        "limit": 1
+    }
 
-    if not data["results"]:
+    raspuns = requests.get(url, params=parametri).json()
+
+    if not raspuns["results"]:
         return None
 
-    result = data["results"][0]
+    rezultat = raspuns["results"][0]
 
     return {
-        "lat": result["geometry"]["lat"],
-        "lon": result["geometry"]["lng"],
-        "country_code": result["components"]["country_code"].upper()
+        "lat": rezultat["geometry"]["lat"],
+        "lon": rezultat["geometry"]["lng"],
+        "cod_tara": rezultat["components"]["country_code"].upper()
     }
 
 
-# ----------------------------
-# API 2 – WEATHER
-# ----------------------------
+# -------------------------------------------------
+# 2️⃣ FUNCȚIE: Obține vremea
+# -------------------------------------------------
+def obtine_vreme(lat=None, lon=None, oras=None):
 
-def get_weather(lat=None, lon=None, city=None):
     url = "https://api.openweathermap.org/data/2.5/weather"
 
-    if city:
-        params = {"q": city, "appid": OPENWEATHER_KEY, "units": "metric"}
+    if oras:
+        parametri = {
+            "q": oras,
+            "appid": CHEIE_VREME,
+            "units": "metric"
+        }
     else:
-        params = {"lat": lat, "lon": lon, "appid": OPENWEATHER_KEY, "units": "metric"}
+        parametri = {
+            "lat": lat,
+            "lon": lon,
+            "appid": CHEIE_VREME,
+            "units": "metric"
+        }
 
-    data = requests.get(url, params=params).json()
+    raspuns = requests.get(url, params=parametri).json()
 
     return {
-        "temperature": data["main"]["temp"],
-        "description": data["weather"][0]["description"]
+        "temperatura": raspuns["main"]["temp"],
+        "descriere": raspuns["weather"][0]["description"]
     }
 
 
-# ----------------------------
-# API 3 – AIR QUALITY
-# ----------------------------
+# -------------------------------------------------
+# 3️⃣ FUNCȚIE: Obține calitatea aerului
+# -------------------------------------------------
+def obtine_calitate_aer(lat, lon):
 
-def get_air_quality(lat, lon):
     url = "https://air-quality-api.open-meteo.com/v1/air-quality"
-    params = {"latitude": lat, "longitude": lon, "hourly": "pm2_5"}
-    data = requests.get(url, params=params).json()
+    parametri = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "pm2_5"
+    }
 
-    return {"pm25": data["hourly"]["pm2_5"][0]}
-
-
-# ----------------------------
-# API 4 – COUNTRY INFO
-# ----------------------------
-
-def get_country_info(code):
-    url = f"https://restcountries.com/v3.1/alpha/{code}"
-    data = requests.get(url).json()[0]
+    raspuns = requests.get(url, params=parametri).json()
 
     return {
-        "capital": data.get("capital", ["N/A"])[0],
-        "population": data["population"],
-        "currency": list(data["currencies"].keys())[0]
+        "pm25": raspuns["hourly"]["pm2_5"][0]
     }
 
 
-# ----------------------------
-# API 5 – IMAGE
-# ----------------------------
+# -------------------------------------------------
+# 4️⃣ FUNCȚIE: Obține informații despre țară
+# -------------------------------------------------
+def obtine_informatii_tara(cod_tara):
 
-def get_city_image(city):
+    url = f"https://restcountries.com/v3.1/alpha/{cod_tara}"
+    raspuns = requests.get(url).json()[0]
+
+    return {
+        "capitala": raspuns.get("capital", ["N/A"])[0],
+        "populatie": raspuns["population"],
+        "moneda": list(raspuns["currencies"].keys())[0]
+    }
+
+
+# -------------------------------------------------
+# 5️⃣ FUNCȚIE: Obține imagine
+# -------------------------------------------------
+def obtine_imagine(nume_oras):
+
     url = "https://api.pexels.com/v1/search"
-    headers = {"Authorization": PEXELS_KEY}
-    params = {"query": city, "per_page": 1}
 
-    data = requests.get(url, headers=headers, params=params).json()
+    header = {"Authorization": CHEIE_PEXELS}
+    parametri = {"query": nume_oras, "per_page": 1}
 
-    if data.get("photos"):
-        return data["photos"][0]["src"]["large"]
+    raspuns = requests.get(url, headers=header, params=parametri).json()
+
+    if raspuns.get("photos"):
+        return raspuns["photos"][0]["src"]["large"]
 
     return None
 
 
-# ----------------------------
-# SCORE CALCULATION
-# ----------------------------
+# -------------------------------------------------
+# 6️⃣ FUNCȚIE: Calculează scorurile
+# -------------------------------------------------
+def calculeaza_scoruri(temperatura, pm25, populatie):
 
-def calculate_scores(temp, pm25, population):
+    # Scor confort – ideal 22°C
+    scor_confort = max(0, 30 - abs(temperatura - 22))
 
-    comfort = max(0, 30 - abs(temp - 22))
-    air_quality = max(0, 100 - pm25)
-    density = max(0, 50 - (population / 2_000_000))
+    # Scor calitate aer – poluare mică = scor mare
+    scor_aer = max(0, 100 - pm25)
 
-    total = comfort * 0.4 + air_quality * 0.4 + density * 0.2
+    # Scor densitate – populație mare = penalizare
+    scor_densitate = max(0, 50 - (populatie / 2_000_000))
 
-    return {
-        "comfort": round(comfort, 2),
-        "air_quality": round(air_quality, 2),
-        "density": round(density, 2),
-        "total": round(total, 2)
-    }
-
-
-# ----------------------------
-# BUILD BUNDLE (CITY + CAPITAL)
-# ----------------------------
-
-def build_city_bundle(city_name):
-
-    coords = get_coordinates(city_name)
-    if not coords:
-        return None
-
-    country = get_country_info(coords["country_code"])
-
-    # CITY RAW
-    city_weather = get_weather(lat=coords["lat"], lon=coords["lon"])
-    city_air = get_air_quality(coords["lat"], coords["lon"])
-    city_image = get_city_image(city_name)
-
-    city_scores = calculate_scores(
-        city_weather["temperature"],
-        city_air["pm25"],
-        country["population"]
-    )
-
-    city_data = {
-        "raw": {
-            "lat": coords["lat"],
-            "lon": coords["lon"],
-            "country_code": coords["country_code"],
-            "temperature": city_weather["temperature"],
-            "pm25": city_air["pm25"],
-            "population": country["population"]
-        },
-        "processed": city_scores,
-        "meta": {
-            "name": city_name,
-            "currency": country["currency"],
-            "image": city_image
-        }
-    }
-
-    # CAPITAL RAW (cascadare)
-    capital_weather = get_weather(city=country["capital"])
-    capital_image = get_city_image(country["capital"])
-
-    capital_scores = calculate_scores(
-        capital_weather["temperature"],
-        city_air["pm25"],
-        country["population"]
-    )
-
-    capital_data = {
-        "raw": {
-            "name": country["capital"],
-            "temperature": capital_weather["temperature"],
-            "population": country["population"]
-        },
-        "processed": capital_scores,
-        "meta": {
-            "image": capital_image
-        }
-    }
-
-    return {
-        "city": city_data,
-        "capital": capital_data
-    }
-
-
-# ----------------------------
-# COMPARISON
-# ----------------------------
-
-def compare_bundles(b1, b2):
-
-    city_winner = (
-        b1["city"]["meta"]["name"]
-        if b1["city"]["processed"]["total"] >
-           b2["city"]["processed"]["total"]
-        else b2["city"]["meta"]["name"]
-    )
-
-    capital_winner = (
-        b1["capital"]["raw"]["name"]
-        if b1["capital"]["processed"]["total"] >
-           b2["capital"]["processed"]["total"]
-        else b2["capital"]["raw"]["name"]
+    # Scor total ponderat
+    scor_total = (
+        scor_confort * 0.4 +
+        scor_aer * 0.4 +
+        scor_densitate * 0.2
     )
 
     return {
-        "city_winner": city_winner,
-        "capital_winner": capital_winner
+        "confort": round(scor_confort, 2),
+        "aer": round(scor_aer, 2),
+        "densitate": round(scor_densitate, 2),
+        "total": round(scor_total, 2)
     }

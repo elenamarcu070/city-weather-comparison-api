@@ -2,6 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.home, name='home'),
-    path('compare/', views.compare_cities, name='compare'),
+    path('', views.pagina_principala, name='home'),
+    path('compare/', views.compara_orase, name='compare'),
 ]

@@ -124,16 +124,16 @@ function afiseazaDate(elementId, pachet){
         <h3 class="titlu-sectiune">${oras.meta.nume}</h3>
         <img src="${oras.meta.imagine || ''}" class="mb-3">
 
-        <strong>DATE BRUTE:</strong>
+        <strong>DATE PRELUATE:</strong>
         <p>Latitudine: ${oras.raw.lat}</p>
         <p>Longitudine: ${oras.raw.lon}</p>
         <p>Cod țară: ${oras.raw.cod_tara}</p>
         <p>Temperatură: ${oras.raw.temperatura} °C</p>
         <p>PM2.5: ${oras.raw.pm25}</p>
-        <p>Populație: ${oras.raw.populatie.toLocaleString()}</p>
+        {% comment %} <p>Populația țării: ${oras.raw.populatie.toLocaleString()}</p> {% endcomment %}
         <p>Monedă: ${oras.meta.moneda}</p>
 
-        <strong>PROCESARE:</strong>
+        <strong>DATE CALCULATE:</strong>
         <p>Scor Confort: ${oras.procesare.confort}</p>
         <p>Scor Aer: ${oras.procesare.aer}</p>
         <p>Scor Densitate: ${oras.procesare.densitate}</p>
@@ -144,14 +144,13 @@ function afiseazaDate(elementId, pachet){
         <h4 class="titlu-sectiune">Capitală: ${capitala.raw.nume}</h4>
         <img src="${capitala.meta.imagine || ''}" class="mb-3">
 
-        <strong>DATE BRUTE:</strong>
+        <strong>DATE PRELUATE:</strong>
         <p>Temperatură: ${capitala.raw.temperatura} °C</p>
-        <p>Populație: ${capitala.raw.populatie.toLocaleString()}</p>
+        <p>Populația țării: ${capitala.raw.populatie.toLocaleString()}</p>
 
-        <strong>PROCESARE:</strong>
+        <strong>DATE CALCULATE:</strong>
         <p>Scor Confort: ${capitala.procesare.confort}</p>
         <p>Scor Aer: ${capitala.procesare.aer}</p>
-        <p>Scor Densitate: ${capitala.procesare.densitate}</p>
         <p><strong>Scor Total: ${capitala.procesare.total}</strong></p>
     `;
 }

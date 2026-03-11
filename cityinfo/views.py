@@ -74,9 +74,21 @@ def construieste_pachet_oras(nume_oras):
     )
 
     # CAPITALA
+
+
+    # Obținem coordonatele capitalei
+    coordonate_capitala = obtine_coordonate(informatii_tara["capitala"])
+
     vreme_capitala = obtine_vreme(
-        oras=informatii_tara["capitala"]
+        lat=coordonate_capitala["lat"],
+        lon=coordonate_capitala["lon"]
     )
+    
+    # Obținem aer pentru capitală
+    aer_capitala = obtine_calitate_aer(
+        coordonate_capitala["lat"],
+        coordonate_capitala["lon"]
+)
 
     imagine_capitala = obtine_imagine(
         informatii_tara["capitala"]
@@ -85,7 +97,7 @@ def construieste_pachet_oras(nume_oras):
     scoruri_capitala = calculeaza_scoruri(
         vreme_capitala["temperatura"],
         aer_oras["pm25"],
-        informatii_tara["populatie"]
+        None
     )
 
     return {
@@ -109,6 +121,7 @@ def construieste_pachet_oras(nume_oras):
             "raw": {
                 "nume": informatii_tara["capitala"],
                 "temperatura": vreme_capitala["temperatura"],
+                "pm25": aer_capitala["pm25"],
                 "populatie": informatii_tara["populatie"]
             },
             "meta": {

@@ -120,27 +120,33 @@ def obtine_imagine(nume_oras):
 # -------------------------------------------------
 # 6️⃣ FUNCȚIE: Calculează scorurile
 # -------------------------------------------------
-def calculeaza_scoruri(temperatura, pm25, populatie):
+def calculeaza_scoruri(temperatura, pm25, populatie=None):
 
-    # Scor confort – ideal 22°C
+    # Scor confort
     scor_confort = max(0, 30 - abs(temperatura - 22))
 
-    # Scor calitate aer – poluare mică = scor mare
+    # Scor aer
     scor_aer = max(0, 100 - pm25)
 
-    # Scor densitate – populație mare = penalizare
-    scor_densitate = max(0, 50 - (populatie / 2_000_000))
-
-    # Scor total ponderat
-    scor_total = (
-        scor_confort * 0.4 +
-        scor_aer * 0.4 +
-        scor_densitate * 0.2
-    )
+    # Dacă populatia NU este None → calculăm densitate
+    if populatie is not None:
+        scor_densitate = max(0, 50 - (populatie / 2_000_000))
+        scor_total = (
+            scor_confort * 0.4 +
+            scor_aer * 0.4 +
+            scor_densitate * 0.2
+        )
+    else:
+        # Pentru capitală
+        scor_densitate = None
+        scor_total = (
+            scor_confort * 0.5 +
+            scor_aer * 0.5
+        )
 
     return {
         "confort": round(scor_confort, 2),
         "aer": round(scor_aer, 2),
-        "densitate": round(scor_densitate, 2),
+        "densitate": round(scor_densitate, 2) if scor_densitate is not None else None,
         "total": round(scor_total, 2)
     }
